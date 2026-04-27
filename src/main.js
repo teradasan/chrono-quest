@@ -17,6 +17,10 @@ const config = {
   input: {
     gamepad: true,
   },
+  physics: {
+    default: 'arcade',
+    arcade: { gravity: { y: 0 }, debug: false },
+  },
   scene: [BootScene, TitleScene, FieldScene, DungeonScene],
 };
 
