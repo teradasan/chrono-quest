@@ -1,9 +1,10 @@
 import * as Phaser from 'phaser';
 import { createTilesetTexture, TILE_PX, TILE } from '../utils/TileRenderer.js';
 import { FIELD_MAP, MAP_COLS, MAP_ROWS, WALL_TILES } from '../maps/fieldMapData.js';
+import { InputManager, ACTION } from '../systems/InputManager.js';
 
 const PLAYER_SPEED = 200;
-const PLAYER_SIZE = 28;
+const PLAYER_SIZE  = 28;
 
 export class FieldScene extends Phaser.Scene {
   constructor() {
@@ -11,7 +12,6 @@ export class FieldScene extends Phaser.Scene {
   }
 
   create() {
-    // タイルセットテクスチャをコードで生成
     createTilesetTexture(this);
 
     // タイルマップ構築
@@ -22,70 +22,49 @@ export class FieldScene extends Phaser.Scene {
     });
     const tileset = map.addTilesetImage('tileset', 'tileset', TILE_PX, TILE_PX, 0, 0);
     this.layer = map.createLayer(0, tileset, 0, 0);
-
-    // 衝突タイル設定
     this.layer.setCollision(WALL_TILES);
 
-    // 水タイルのアニメーション用タイマー
-    this.waterTime = 0;
-
-    // 仮プレイヤー（緑の四角）- Phaser正しいAPI
+    // 仮プレイヤー（緑の四角）
     const startX = 25 * TILE_PX + TILE_PX / 2;
     const startY = 17 * TILE_PX + TILE_PX / 2;
     this.player = this.add.rectangle(startX, startY, PLAYER_SIZE, PLAYER_SIZE, 0x22dd44);
     this.physics.add.existing(this.player);
     this.player.body.setCollideWorldBounds(false);
     this.player.setDepth(10);
-
-    // プレイヤーとマップの衝突
     this.physics.add.collider(this.player, this.layer);
 
-    // カメラ設定
+    // カメラ
     const mapW = MAP_COLS * TILE_PX;
     const mapH = MAP_ROWS * TILE_PX;
+    this.physics.world.setBounds(0, 0, mapW, mapH);
     this.cameras.main.setBounds(0, 0, mapW, mapH);
     this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
     this.cameras.main.fadeIn(400);
 
-    // ワールドの物理境界もマップに合わせる
-    this.physics.world.setBounds(0, 0, mapW, mapH);
-
-    // キーボード入力（Session03でInputManagerに移行）
-    this.cursors = this.input.keyboard.createCursorKeys();
-    this.wasd = this.input.keyboard.addKeys({
-      up: Phaser.Input.Keyboard.KeyCodes.W,
-      down: Phaser.Input.Keyboard.KeyCodes.S,
-      left: Phaser.Input.Keyboard.KeyCodes.A,
-      right: Phaser.Input.Keyboard.KeyCodes.D,
-    });
+    // InputManager 初期化
+    this.input$ = new InputManager(this);
 
     // ミニマップ
     this.createMinimap(mapW, mapH);
 
-    // 操作ガイド
-    this.add.text(12, 12, '矢印 / WASD で移動', {
-      fontSize: '14px',
-      fontFamily: 'monospace',
-      color: '#ffffff',
-      backgroundColor: '#00000088',
-      padding: { x: 6, y: 4 },
-    }).setScrollFactor(0).setDepth(100);
+    // 操作ガイドUI
+    this.createGuide();
+
+    // 水アニメーション用
+    this.waterTime = 0;
   }
 
   createMinimap(mapW, mapH) {
-    const mmW = 160;
-    const mmH = 100;
+    const mmW = 160, mmH = 100;
     const mmX = this.scale.width - mmW - 10;
     const mmY = 10;
 
-    // ミニマップカメラ
     this.miniCam = this.cameras.add(mmX, mmY, mmW, mmH);
     this.miniCam.setZoom(mmW / mapW);
     this.miniCam.setBounds(0, 0, mapW, mapH);
     this.miniCam.startFollow(this.player, true);
     this.miniCam.setBackgroundColor('#111111');
 
-    // 枠線（メインカメラのみ表示）
     const border = this.add.graphics();
     border.lineStyle(2, 0xffffff, 0.7);
     border.strokeRect(mmX - 1, mmY - 1, mmW + 2, mmH + 2);
@@ -93,28 +72,47 @@ export class FieldScene extends Phaser.Scene {
     this.miniCam.ignore(border);
   }
 
+  createGuide() {
+    const lines = [
+      '── 操作 ──────────────────',
+      '移動     : 矢印/WASD | Dパッド',
+      'ダッシュ : Shift     | L2',
+      'スキル1  : R         | R1',
+      'スキル2  : F         | R2',
+      'メニュー : Esc       | Start',
+      'マップ   : M         | Select',
+    ];
+    this.add.text(12, 12, lines.join('\n'), {
+      fontSize: '11px',
+      fontFamily: 'monospace',
+      color: '#dddddd',
+      backgroundColor: '#00000099',
+      padding: { x: 8, y: 6 },
+      lineSpacing: 3,
+    }).setScrollFactor(0).setDepth(100);
+
+    // ゲームパッド接続状態表示
+    this.padText = this.add.text(
+      this.scale.width - 12, this.scale.height - 12,
+      'ゲームパッド: 未接続',
+      { fontSize: '11px', fontFamily: 'monospace', color: '#888888' }
+    ).setOrigin(1, 1).setScrollFactor(0).setDepth(100);
+  }
+
   update(time, delta) {
-    const body = this.player.body;
-    body.setVelocity(0);
+    const input = this.input$;
+    input.update(delta);
 
-    const left  = this.cursors.left.isDown  || this.wasd.left.isDown;
-    const right = this.cursors.right.isDown || this.wasd.right.isDown;
-    const up    = this.cursors.up.isDown    || this.wasd.up.isDown;
-    const down  = this.cursors.down.isDown  || this.wasd.down.isDown;
+    // 移動
+    const { x, y } = input.getAxis();
+    const speed = input.isDown(ACTION.DASH) ? PLAYER_SPEED * 1.9 : PLAYER_SPEED;
+    this.player.body.setVelocity(x * speed, y * speed);
 
-    let vx = 0, vy = 0;
-    if (left)  vx -= PLAYER_SPEED;
-    if (right) vx += PLAYER_SPEED;
-    if (up)    vy -= PLAYER_SPEED;
-    if (down)  vy += PLAYER_SPEED;
-
-    // 斜め移動を正規化
-    if (vx !== 0 && vy !== 0) {
-      vx *= 0.707;
-      vy *= 0.707;
-    }
-
-    body.setVelocity(vx, vy);
+    // ゲームパッド接続状態をUIに反映
+    const padLabel = input.isGamepadConnected()
+      ? 'ゲームパッド: 接続中 ✓'
+      : 'ゲームパッド: 未接続';
+    if (this.padText.text !== padLabel) this.padText.setText(padLabel);
 
     // 水タイルのゆらめき
     this.waterTime += delta;
@@ -125,5 +123,9 @@ export class FieldScene extends Phaser.Scene {
         if (tile.index === TILE.WATER) tile.tint = tint;
       });
     }
+  }
+
+  shutdown() {
+    this.input$?.destroy();
   }
 }
