@@ -26,13 +26,15 @@ export class FieldScene extends Phaser.Scene {
     // 衝突タイル設定
     this.layer.setCollision(WALL_TILES);
 
-    // 水タイルのアニメーション（揺らめき）
+    // 水タイルのアニメーション用タイマー
     this.waterTime = 0;
 
-    // 仮プレイヤー（緑の四角）
+    // 仮プレイヤー（緑の四角）- Phaser正しいAPI
     const startX = 25 * TILE_PX + TILE_PX / 2;
     const startY = 17 * TILE_PX + TILE_PX / 2;
-    this.player = this.physics.add.rectangle(startX, startY, PLAYER_SIZE, PLAYER_SIZE, 0x22dd44);
+    this.player = this.add.rectangle(startX, startY, PLAYER_SIZE, PLAYER_SIZE, 0x22dd44);
+    this.physics.add.existing(this.player);
+    this.player.body.setCollideWorldBounds(false);
     this.player.setDepth(10);
 
     // プレイヤーとマップの衝突
@@ -45,7 +47,10 @@ export class FieldScene extends Phaser.Scene {
     this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
     this.cameras.main.fadeIn(400);
 
-    // キーボード入力（Session03で InputManager に移行）
+    // ワールドの物理境界もマップに合わせる
+    this.physics.world.setBounds(0, 0, mapW, mapH);
+
+    // キーボード入力（Session03でInputManagerに移行）
     this.cursors = this.input.keyboard.createCursorKeys();
     this.wasd = this.input.keyboard.addKeys({
       up: Phaser.Input.Keyboard.KeyCodes.W,
@@ -54,7 +59,7 @@ export class FieldScene extends Phaser.Scene {
       right: Phaser.Input.Keyboard.KeyCodes.D,
     });
 
-    // ミニマップ（右上の小窓）
+    // ミニマップ
     this.createMinimap(mapW, mapH);
 
     // 操作ガイド
@@ -78,12 +83,14 @@ export class FieldScene extends Phaser.Scene {
     this.miniCam.setZoom(mmW / mapW);
     this.miniCam.setBounds(0, 0, mapW, mapH);
     this.miniCam.startFollow(this.player, true);
-    this.miniCam.setBackgroundColor('#000000');
+    this.miniCam.setBackgroundColor('#111111');
 
-    // 枠線
-    const border = this.add.rectangle(
-      mmX + mmW / 2, mmY + mmH / 2, mmW + 2, mmH + 2, 0xffffff, 0.6
-    ).setScrollFactor(0).setDepth(99);
+    // 枠線（メインカメラのみ表示）
+    const border = this.add.graphics();
+    border.lineStyle(2, 0xffffff, 0.7);
+    border.strokeRect(mmX - 1, mmY - 1, mmW + 2, mmH + 2);
+    border.setScrollFactor(0).setDepth(99);
+    this.miniCam.ignore(border);
   }
 
   update(time, delta) {
@@ -101,7 +108,7 @@ export class FieldScene extends Phaser.Scene {
     if (up)    vy -= PLAYER_SPEED;
     if (down)  vy += PLAYER_SPEED;
 
-    // 斜め移動の速度を正規化
+    // 斜め移動を正規化
     if (vx !== 0 && vy !== 0) {
       vx *= 0.707;
       vy *= 0.707;
@@ -109,15 +116,13 @@ export class FieldScene extends Phaser.Scene {
 
     body.setVelocity(vx, vy);
 
-    // 水タイルのゆらめき（色調変化）
+    // 水タイルのゆらめき
     this.waterTime += delta;
-    if (this.waterTime > 500) {
+    if (this.waterTime > 600) {
       this.waterTime = 0;
+      const tint = (Date.now() % 1200) < 600 ? 0xaaccff : 0x88aaee;
       this.layer.forEachTile(tile => {
-        if (tile.index === TILE.WATER) {
-          const t = (Date.now() / 1000) % 1;
-          tile.tint = t < 0.5 ? 0xaaccff : 0x88aaee;
-        }
+        if (tile.index === TILE.WATER) tile.tint = tint;
       });
     }
   }
