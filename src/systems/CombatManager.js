@@ -8,16 +8,18 @@ const CHARGE_ACTIVE     = 220;   // チャージ攻撃のヒットボックス�
 const LOCKON_RANGE      = 260;   // ロックオン射程(px)
 
 // 方向ごとのヒットボックス位置（プレイヤー中心からのオフセット）
+// reach = 攻撃方向への奥行き、span = 垂直方向のカバー幅
+// 通常: 前方1.3タイル・縦1.25タイル / チャージ: 前方1.6タイル・縦1.6タイル
 function getHitboxRect(dir, isCharge) {
-  const w  = isCharge ? 80 : 58;
-  const h  = isCharge ? 52 : 38;
-  const of = 14;
+  const reach = isCharge ? 64 : 50;  // 攻撃方向の奥行き(px)
+  const span  = isCharge ? 76 : 60;  // 垂直カバー幅(px)
+  const of    = 14;                  // プレイヤー端からの開始オフセット
   switch (dir) {
-    case 'down':  return { x: -w / 2,       y: of,          w, h };
-    case 'up':    return { x: -w / 2,       y: -of - h,     w, h };
-    case 'left':  return { x: -of - w,      y: -h / 2,      w, h };
-    case 'right': return { x: of,           y: -h / 2,      w, h };
-    default:      return { x: -w / 2,       y: of,          w, h };
+    case 'down':  return { x: -span / 2,      y: of,             w: span, h: reach };
+    case 'up':    return { x: -span / 2,      y: -of - reach,    w: span, h: reach };
+    case 'left':  return { x: -of - reach,    y: -span / 2,      w: reach, h: span };
+    case 'right': return { x: of,             y: -span / 2,      w: reach, h: span };
+    default:      return { x: -span / 2,      y: of,             w: span, h: reach };
   }
 }
 
@@ -172,20 +174,30 @@ export class CombatManager {
   _showSwingEffect(isCharge) {
     const { x, y, dir } = this.player;
     const angle  = DIR_ANGLE[dir] ?? 0;
-    const radius = isCharge ? 80 : 58;
-    const spread = isCharge ? Math.PI * 0.55 : Math.PI * 0.45;
+    // 通常: 半角55° = 合計110° / チャージ: 半角63° = 合計126°
+    const radius = isCharge ? 68 : 52;
+    const spread = isCharge ? Math.PI * 0.35 : Math.PI * 0.305;
 
     const g = this.scene.add.graphics().setDepth(15);
-    g.fillStyle(isCharge ? 0xff8800 : 0xffffff, isCharge ? 0.6 : 0.5);
+    g.fillStyle(isCharge ? 0xff8800 : 0xffffff, isCharge ? 0.55 : 0.45);
     g.beginPath();
     g.moveTo(x, y);
     g.arc(x, y, radius, angle - spread, angle + spread, false);
     g.closePath();
     g.fill();
 
+    // 刀身のライン（扇の中心線）
+    const ex = x + Math.cos(angle) * radius;
+    const ey = y + Math.sin(angle) * radius;
+    g.lineStyle(isCharge ? 3 : 2, isCharge ? 0xffcc00 : 0xddddff, 0.9);
+    g.beginPath();
+    g.moveTo(x, y);
+    g.lineTo(ex, ey);
+    g.strokePath();
+
     // チャージはフチを追加
     if (isCharge) {
-      g.lineStyle(3, 0xffdd44, 0.9);
+      g.lineStyle(2, 0xffdd44, 0.8);
       g.beginPath();
       g.arc(x, y, radius, angle - spread, angle + spread, false);
       g.strokePath();
@@ -194,9 +206,9 @@ export class CombatManager {
     this.scene.tweens.add({
       targets: g,
       alpha: 0,
-      scaleX: isCharge ? 1.3 : 1.1,
-      scaleY: isCharge ? 1.3 : 1.1,
-      duration: isCharge ? 300 : 200,
+      scaleX: isCharge ? 1.25 : 1.08,
+      scaleY: isCharge ? 1.25 : 1.08,
+      duration: isCharge ? 280 : 180,
       ease: 'Quad.easeOut',
       onComplete: () => g.destroy(),
     });
