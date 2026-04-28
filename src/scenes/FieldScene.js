@@ -1,10 +1,8 @@
 import * as Phaser from 'phaser';
 import { createTilesetTexture, TILE_PX, TILE } from '../utils/TileRenderer.js';
 import { FIELD_MAP, MAP_COLS, MAP_ROWS, WALL_TILES } from '../maps/fieldMapData.js';
-import { InputManager, ACTION } from '../systems/InputManager.js';
-
-const PLAYER_SPEED = 200;
-const PLAYER_SIZE  = 28;
+import { InputManager } from '../systems/InputManager.js';
+import { Player, createPlayerTexture } from '../entities/Player.js';
 
 export class FieldScene extends Phaser.Scene {
   constructor() {
@@ -12,7 +10,9 @@ export class FieldScene extends Phaser.Scene {
   }
 
   create() {
+    // テクスチャ生成（タイル・プレイヤー）
     createTilesetTexture(this);
+    createPlayerTexture(this);
 
     // タイルマップ構築
     const map = this.make.tilemap({
@@ -24,30 +24,29 @@ export class FieldScene extends Phaser.Scene {
     this.layer = map.createLayer(0, tileset, 0, 0);
     this.layer.setCollision(WALL_TILES);
 
-    // 仮プレイヤー（緑の四角）
-    const startX = 25 * TILE_PX + TILE_PX / 2;
-    const startY = 17 * TILE_PX + TILE_PX / 2;
-    this.player = this.add.rectangle(startX, startY, PLAYER_SIZE, PLAYER_SIZE, 0x22dd44);
-    this.physics.add.existing(this.player);
-    this.player.body.setCollideWorldBounds(false);
-    this.player.setDepth(10);
-    this.physics.add.collider(this.player, this.layer);
-
-    // カメラ
+    // マップサイズ
     const mapW = MAP_COLS * TILE_PX;
     const mapH = MAP_ROWS * TILE_PX;
     this.physics.world.setBounds(0, 0, mapW, mapH);
-    this.cameras.main.setBounds(0, 0, mapW, mapH);
-    this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
-    this.cameras.main.fadeIn(400);
 
-    // InputManager 初期化
+    // プレイヤー生成（交差点付近からスタート）
+    const startX = 25 * TILE_PX + TILE_PX / 2;
+    const startY = 17 * TILE_PX + TILE_PX / 2;
+    this.player = new Player(this, startX, startY);
+    this.physics.add.collider(this.player, this.layer);
+
+    // カメラ
+    this.cameras.main.setBounds(0, 0, mapW, mapH);
+    this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
+    this.cameras.main.fadeIn(500);
+
+    // InputManager
     this.input$ = new InputManager(this);
 
     // ミニマップ
     this.createMinimap(mapW, mapH);
 
-    // 操作ガイドUI
+    // 操作ガイド
     this.createGuide();
 
     // 水アニメーション用
@@ -77,10 +76,8 @@ export class FieldScene extends Phaser.Scene {
       '── 操作 ──────────────────',
       '移動     : 矢印/WASD | Dパッド',
       'ダッシュ : Shift     | L2',
-      'スキル1  : R         | R1',
-      'スキル2  : F         | R2',
+      '回避     : X         | B',
       'メニュー : Esc       | Start',
-      'マップ   : M         | Select',
     ];
     this.add.text(12, 12, lines.join('\n'), {
       fontSize: '11px',
@@ -91,7 +88,6 @@ export class FieldScene extends Phaser.Scene {
       lineSpacing: 3,
     }).setScrollFactor(0).setDepth(100);
 
-    // ゲームパッド接続ログ
     this.input.gamepad.on('connected', (pad) => {
       console.log('Gamepad connected:', pad.id);
     });
@@ -101,10 +97,8 @@ export class FieldScene extends Phaser.Scene {
     const input = this.input$;
     input.update(delta);
 
-    // 移動
-    const { x, y } = input.getAxis();
-    const speed = input.isDown(ACTION.DASH) ? PLAYER_SPEED * 1.9 : PLAYER_SPEED;
-    this.player.body.setVelocity(x * speed, y * speed);
+    // プレイヤー更新
+    this.player.update(delta, input);
 
     // 水タイルのゆらめき
     this.waterTime += delta;
