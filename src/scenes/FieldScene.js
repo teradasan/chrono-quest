@@ -113,16 +113,26 @@ export class FieldScene extends Phaser.Scene {
     const speed = input.isDown(ACTION.DASH) ? PLAYER_SPEED * 1.9 : PLAYER_SPEED;
     this.player.body.setVelocity(x * speed, y * speed);
 
-    // ゲームパッドデバッグ表示
+    // ゲームパッドデバッグ表示（Raw Gamepad API で直接確認）
     try {
-      const pad = this.input.gamepad?.pad1;
-      if (pad) {
-        const btns = pad.buttons.map((b, i) => b.pressed ? i : null).filter(i => i !== null);
-        // axes は Axis オブジェクトなので .value で取得
-        const ax = (pad.axes ?? []).map((a, i) => `A${i}:${(a.value ?? a).toFixed(2)}`).join(' ');
-        const lx = (pad.leftStick?.x ?? 0).toFixed(2);
-        const ly = (pad.leftStick?.y ?? 0).toFixed(2);
-        this.padDebug.setText(`PAD OK: ${pad.id.slice(0, 28)}\nBtns:[${btns.join(',')||'-'}]  LS:(${lx},${ly})  ${ax}`);
+      const rawPads = navigator.getGamepads ? Array.from(navigator.getGamepads()).filter(Boolean) : [];
+      const raw = rawPads[0];
+      if (raw) {
+        // 押されているボタン（value > 0.1）
+        const rawBtns = raw.buttons
+          .map((b, i) => b.value > 0.1 ? `${i}(${b.value.toFixed(1)})` : null)
+          .filter(Boolean);
+        // 動いている軸（|value| > 0.1）
+        const rawAxes = Array.from(raw.axes)
+          .map((v, i) => Math.abs(v) > 0.1 ? `A${i}:${v.toFixed(2)}` : null)
+          .filter(Boolean);
+        const lines = [
+          `[RAW] ${raw.id.slice(0, 32)}`,
+          `Btns(${raw.buttons.length}): ${rawBtns.join(' ') || '(なし)'}`,
+          `Axes(${raw.axes.length}): ${rawAxes.join(' ') || '(動きなし)'}`,
+          `mapping: ${raw.mapping || 'none'}`,
+        ];
+        this.padDebug.setText(lines.join('\n'));
       } else {
         this.padDebug.setText('ゲームパッド未検出 (何かボタンを押してください)');
       }
