@@ -257,18 +257,21 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this._setupAnimations(scene);
 
     // 状態
-    this.state     = 'idle';   // idle | walk | dash | dodge
+    this.state     = 'idle';   // idle | walk | dash | dodge | attack | charge_wind | charge_release
     this.dir       = 'down';   // up | down | left | right
     this.hp        = 10;
     this.hpMax     = 10;
     this.invincible = false;
 
     // タイマー
-    this._dodgeTimer   = 0;
+    this._dodgeTimer    = 0;
     this._dodgeCooldown = 0;
-    this._dodgeVx      = 0;
-    this._dodgeVy      = 0;
-    this._blinkTimer   = 0;
+    this._dodgeVx       = 0;
+    this._dodgeVy       = 0;
+    this._blinkTimer    = 0;
+
+    // 攻撃状態フラグ（CombatManagerから制御）
+    this._attackTint = false;
   }
 
   // ── アニメーション定義 ──────────────────
@@ -305,37 +308,61 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       return;
     }
 
+    // 攻撃中は移動を制限（ただし完全停止ではなく遅くする）
+    const attacking = this.state === 'attack' || this.state === 'charge_release';
+
     const { x, y } = inputManager.getAxis();
     const moving    = x !== 0 || y !== 0;
-    const dashing   = inputManager.isDown(ACTION.DASH);
+    const dashing   = inputManager.isDown(ACTION.DASH) && !attacking;
     const dodgeJust = inputManager.isJustDown(ACTION.DODGE);
 
-    // 回避開始
-    if (dodgeJust && this._dodgeCooldown <= 0 && moving) {
+    // 回避開始（攻撃中は不可）
+    if (dodgeJust && this._dodgeCooldown <= 0 && moving && !attacking) {
       this._startDodge(x, y);
       return;
     }
 
-    // 移動
-    const speed = dashing ? DASH_SPEED : SPEED;
+    // 移動速度（攻撃中は遅くなる）
+    const speed = attacking ? SPEED * 0.3 : (dashing ? DASH_SPEED : SPEED);
     this.body.setVelocity(x * speed, y * speed);
 
-    // 向き更新
-    if (moving) this._updateDir(x, y);
+    // ロックオン中でなければ向き更新
+    if (moving && !this._lockOnActive) this._updateDir(x, y);
 
-    // 状態・アニメ更新
-    const newState = moving ? (dashing ? 'dash' : 'walk') : 'idle';
-    if (newState !== this.state || this._dirChanged) {
-      this.state = newState;
-      this._dirChanged = false;
-      this._playAnim();
+    // 状態・アニメ更新（攻撃中は変更しない）
+    if (!attacking) {
+      const newState = moving ? (dashing ? 'dash' : 'walk') : 'idle';
+      if (newState !== this.state || this._dirChanged) {
+        this.state = newState;
+        this._dirChanged = false;
+        this._playAnim();
+      }
     }
 
     // 無敵中の点滅
-    if (this.invincible) {
+    if (this.invincible && !this._attackTint) {
       this._blinkTimer += delta;
       this.setAlpha(Math.floor(this._blinkTimer / 80) % 2 === 0 ? 1 : 0.3);
     }
+  }
+
+  // ── CombatManagerから呼ばれるコールバック ──
+  onAttackStart(isCharge) {
+    this.state = isCharge ? 'charge_release' : 'attack';
+    this._attackTint = true;
+    this.setTint(isCharge ? 0xff8800 : 0xffddaa);
+    this.body.setVelocity(0, 0);
+  }
+
+  onAttackEnd() {
+    this._attackTint = false;
+    this.clearTint();
+    this.state = 'idle';
+    this._playAnim();
+  }
+
+  setLockOnActive(active) {
+    this._lockOnActive = active;
   }
 
   // ── 回避処理 ────────────────────────────
