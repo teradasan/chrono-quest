@@ -191,38 +191,23 @@ export class CombatManager {
 
     const g = this.scene.add.graphics().setDepth(15);
 
-    // ── 帯状の光跡（台形: 根元が太く先端が細い）──────────
-    g.fillStyle(isCharge ? 0xff8800 : 0xffffff, isCharge ? 0.45 : 0.35);
-    g.beginPath();
-    g.moveTo(rootX + px * halfSpan,        rootY + py * halfSpan);
-    g.lineTo(tipX  + px * halfSpan * 0.25, tipY  + py * halfSpan * 0.25);
-    g.lineTo(tipX  - px * halfSpan * 0.25, tipY  - py * halfSpan * 0.25);
-    g.lineTo(rootX - px * halfSpan,        rootY - py * halfSpan);
-    g.closePath();
-    g.fill();
-
-    // ── 刀身ライン（中心）────────────────────────────────
-    g.lineStyle(isCharge ? 4 : 3, isCharge ? 0xffff44 : 0xffffff, 1.0);
+    // ── 刀身ライン（中心・レイピア風の細い線）────────────
+    g.lineStyle(isCharge ? 3 : 2, isCharge ? 0xffcc00 : 0xffffff, 1.0);
     g.beginPath();
     g.moveTo(rootX, rootY);
     g.lineTo(tipX,  tipY);
     g.strokePath();
 
-    // ── スピードライン（両脇 2本）────────────────────────
-    const lineColor = isCharge ? 0xffcc00 : 0xbbccff;
+    // ── スピードライン（両脇 各1本・細く短め）────────────
     for (const side of [-1, 1]) {
-      const ox = px * halfSpan * 0.6 * side;
-      const oy = py * halfSpan * 0.6 * side;
-      g.lineStyle(1, lineColor, 0.55);
+      const ox = px * halfSpan * side;
+      const oy = py * halfSpan * side;
+      g.lineStyle(1, isCharge ? 0xffaa00 : 0xaaaacc, 0.5);
       g.beginPath();
       g.moveTo(rootX + ox, rootY + oy);
-      g.lineTo(tipX  + ox * 0.3, tipY + oy * 0.3);
+      g.lineTo(tipX  + ox * 0.4, tipY  + oy * 0.4);
       g.strokePath();
     }
-
-    // ── 先端フラッシュ ────────────────────────────────────
-    g.fillStyle(isCharge ? 0xffff88 : 0xffffff, isCharge ? 0.9 : 0.8);
-    g.fillCircle(tipX, tipY, isCharge ? 7 : 5);
 
     // alpha フェードのみ（scale は使わない）
     this.scene.tweens.add({
