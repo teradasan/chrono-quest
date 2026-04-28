@@ -114,14 +114,20 @@ export class FieldScene extends Phaser.Scene {
     this.player.body.setVelocity(x * speed, y * speed);
 
     // ゲームパッドデバッグ表示
-    const pad = this.input.gamepad?.pad1;
-    if (pad) {
-      const btns = pad.buttons.map((b, i) => b.pressed ? i : null).filter(i => i !== null);
-      const ax = pad.axes.map((a, i) => `A${i}:${a.toFixed(2)}`).join(' ');
-      const ls = `LS:(${(pad.leftStick?.x ?? 0).toFixed(2)},${(pad.leftStick?.y ?? 0).toFixed(2)})`;
-      this.padDebug.setText(`PAD: ${pad.id.slice(0, 30)}\nBtns:${btns.join(',')||'-'}  ${ls}  ${ax}`);
-    } else {
-      this.padDebug.setText('ゲームパッド未検出 (ボタンを押してください)');
+    try {
+      const pad = this.input.gamepad?.pad1;
+      if (pad) {
+        const btns = pad.buttons.map((b, i) => b.pressed ? i : null).filter(i => i !== null);
+        // axes は Axis オブジェクトなので .value で取得
+        const ax = (pad.axes ?? []).map((a, i) => `A${i}:${(a.value ?? a).toFixed(2)}`).join(' ');
+        const lx = (pad.leftStick?.x ?? 0).toFixed(2);
+        const ly = (pad.leftStick?.y ?? 0).toFixed(2);
+        this.padDebug.setText(`PAD OK: ${pad.id.slice(0, 28)}\nBtns:[${btns.join(',')||'-'}]  LS:(${lx},${ly})  ${ax}`);
+      } else {
+        this.padDebug.setText('ゲームパッド未検出 (何かボタンを押してください)');
+      }
+    } catch (e) {
+      this.padDebug.setText(`PADエラー: ${e.message}`);
     }
 
     // 水タイルのゆらめき
