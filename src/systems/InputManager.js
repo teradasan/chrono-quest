@@ -192,15 +192,24 @@ export class InputManager {
 
   // --- フレームごとに呼ぶ ---
 
+  /**
+   * フレーム先頭で呼ぶ（チャージタイマー更新）
+   * ※ _prevGpBtn の更新は endFrame() で行う
+   */
   update(delta) {
-    // チャージ攻撃タイマー
     if (this.isDown(ACTION.ATTACK)) {
       this._attackHoldMs += delta;
     } else {
       this._attackHoldMs = 0;
     }
+  }
 
-    // 前フレームのゲームパッド状態を保存
+  /**
+   * フレーム末尾で必ず呼ぶ
+   * isJustDown / isJustUp が "前フレーム" を正しく参照できるよう、
+   * 全ての入力チェックが終わってから現在状態を prev に保存する
+   */
+  endFrame() {
     const pad = this._getPad();
     if (pad) {
       for (const action of Object.keys(this._gpBindings)) {

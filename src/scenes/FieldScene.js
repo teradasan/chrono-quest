@@ -236,6 +236,10 @@ export class FieldScene extends Phaser.Scene {
       }
     }
 
+    // ── フレーム末：ゲームパッドの prev 状態を保存 ──
+    // ※ 必ず全ての isJustDown/isJustUp チェックの後に呼ぶ
+    this.input$.endFrame();
+
     // ── 水タイルのゆらめき ──────────────────
     this.waterTime += delta;
     if (this.waterTime > 600) {
