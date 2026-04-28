@@ -91,14 +91,7 @@ export class FieldScene extends Phaser.Scene {
       lineSpacing: 3,
     }).setScrollFactor(0).setDepth(100);
 
-    // ゲームパッドデバッグ表示
-    this.padDebug = this.add.text(
-      12, this.scale.height - 12,
-      '',
-      { fontSize: '10px', fontFamily: 'monospace', color: '#ffff44', backgroundColor: '#00000099', padding: { x: 6, y: 4 } }
-    ).setOrigin(0, 1).setScrollFactor(0).setDepth(100);
-
-    // ゲームパッド接続イベント
+    // ゲームパッド接続ログ
     this.input.gamepad.on('connected', (pad) => {
       console.log('Gamepad connected:', pad.id);
     });
@@ -112,33 +105,6 @@ export class FieldScene extends Phaser.Scene {
     const { x, y } = input.getAxis();
     const speed = input.isDown(ACTION.DASH) ? PLAYER_SPEED * 1.9 : PLAYER_SPEED;
     this.player.body.setVelocity(x * speed, y * speed);
-
-    // ゲームパッドデバッグ表示（Raw Gamepad API で直接確認）
-    try {
-      const rawPads = navigator.getGamepads ? Array.from(navigator.getGamepads()).filter(Boolean) : [];
-      const raw = rawPads[0]; // 最初に見つかったパッドを使用
-      if (raw) {
-        // 押されているボタン（value > 0.1）
-        const rawBtns = raw.buttons
-          .map((b, i) => b.value > 0.1 ? `${i}(${b.value.toFixed(1)})` : null)
-          .filter(Boolean);
-        // 動いている軸（|value| > 0.1）
-        const rawAxes = Array.from(raw.axes)
-          .map((v, i) => Math.abs(v) > 0.1 ? `A${i}:${v.toFixed(2)}` : null)
-          .filter(Boolean);
-        const lines = [
-          `[RAW] ${raw.id.slice(0, 32)}`,
-          `Btns(${raw.buttons.length}): ${rawBtns.join(' ') || '(なし)'}`,
-          `Axes(${raw.axes.length}): ${rawAxes.join(' ') || '(動きなし)'}`,
-          `mapping: ${raw.mapping || 'none'}`,
-        ];
-        this.padDebug.setText(lines.join('\n'));
-      } else {
-        this.padDebug.setText('ゲームパッド未検出 (何かボタンを押してください)');
-      }
-    } catch (e) {
-      this.padDebug.setText(`PADエラー: ${e.message}`);
-    }
 
     // 水タイルのゆらめき
     this.waterTime += delta;
