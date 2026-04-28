@@ -158,9 +158,9 @@ export class FieldScene extends Phaser.Scene {
       '── 操作 ──────────────────',
       '移動     : WASD/矢印 | Dパッド',
       'ダッシュ : Shift     | L2',
-      '攻撃     : Z/Enter  | A',
+      '攻撃     : Z/Enter  | B',
       'チャージ : 長押し→離す',
-      '回避     : X         | B',
+      '回避     : X         | A',
       'ロックオン: Tab      | L1',
     ];
     this.add.text(12, 12, lines.join('\n'), {

@@ -37,18 +37,18 @@ const DEFAULT_KB = {
 };
 
 // デフォルトゲームパッドバインド（action → ボタンインデックス）
-// 標準的なXbox/PS配置に準拠
+// Nintendo式配置に準拠（B=南, A=東, Y=西, X=北）
 const DEFAULT_GP = {
-  [ACTION.ATTACK]:      0,  // A / Cross
-  [ACTION.DODGE]:       1,  // B / Circle
-  [ACTION.ITEM]:        2,  // X / Square
-  [ACTION.WEAPON_SWAP]: 3,  // Y / Triangle
-  [ACTION.LOCK_ON]:     4,  // LB / L1
-  [ACTION.SKILL1]:      5,  // RB / R1
-  [ACTION.DASH]:        6,  // LT / L2
-  [ACTION.SKILL2]:      7,  // RT / R2
-  [ACTION.MAP]:         8,  // Back / Select
-  [ACTION.MENU]:        9,  // Start / Options
+  [ACTION.ATTACK]:      2,  // B（南・メインアクション）
+  [ACTION.DODGE]:       3,  // A（東・回避）
+  [ACTION.ITEM]:        0,  // Y（西・アイテム）
+  [ACTION.WEAPON_SWAP]: 1,  // X（北・武器スワップ）
+  [ACTION.LOCK_ON]:     4,  // L1
+  [ACTION.SKILL1]:      5,  // R1
+  [ACTION.DASH]:        6,  // L2
+  [ACTION.SKILL2]:      7,  // R2
+  [ACTION.MAP]:         8,  // Select
+  [ACTION.MENU]:        9,  // Start
 };
 
 const DEADZONE = 0.2; // アナログスティック無感知帯
