@@ -91,12 +91,17 @@ export class FieldScene extends Phaser.Scene {
       lineSpacing: 3,
     }).setScrollFactor(0).setDepth(100);
 
-    // ゲームパッド接続状態表示
-    this.padText = this.add.text(
-      this.scale.width - 12, this.scale.height - 12,
-      'ゲームパッド: 未接続',
-      { fontSize: '11px', fontFamily: 'monospace', color: '#888888' }
-    ).setOrigin(1, 1).setScrollFactor(0).setDepth(100);
+    // ゲームパッドデバッグ表示
+    this.padDebug = this.add.text(
+      12, this.scale.height - 12,
+      '',
+      { fontSize: '10px', fontFamily: 'monospace', color: '#ffff44', backgroundColor: '#00000099', padding: { x: 6, y: 4 } }
+    ).setOrigin(0, 1).setScrollFactor(0).setDepth(100);
+
+    // ゲームパッド接続イベント
+    this.input.gamepad.on('connected', (pad) => {
+      console.log('Gamepad connected:', pad.id);
+    });
   }
 
   update(time, delta) {
@@ -108,11 +113,16 @@ export class FieldScene extends Phaser.Scene {
     const speed = input.isDown(ACTION.DASH) ? PLAYER_SPEED * 1.9 : PLAYER_SPEED;
     this.player.body.setVelocity(x * speed, y * speed);
 
-    // ゲームパッド接続状態をUIに反映
-    const padLabel = input.isGamepadConnected()
-      ? 'ゲームパッド: 接続中 ✓'
-      : 'ゲームパッド: 未接続';
-    if (this.padText.text !== padLabel) this.padText.setText(padLabel);
+    // ゲームパッドデバッグ表示
+    const pad = this.input.gamepad?.pad1;
+    if (pad) {
+      const btns = pad.buttons.map((b, i) => b.pressed ? i : null).filter(i => i !== null);
+      const ax = pad.axes.map((a, i) => `A${i}:${a.toFixed(2)}`).join(' ');
+      const ls = `LS:(${(pad.leftStick?.x ?? 0).toFixed(2)},${(pad.leftStick?.y ?? 0).toFixed(2)})`;
+      this.padDebug.setText(`PAD: ${pad.id.slice(0, 30)}\nBtns:${btns.join(',')||'-'}  ${ls}  ${ax}`);
+    } else {
+      this.padDebug.setText('ゲームパッド未検出 (ボタンを押してください)');
+    }
 
     // 水タイルのゆらめき
     this.waterTime += delta;
