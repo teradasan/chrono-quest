@@ -178,43 +178,36 @@ export class CombatManager {
     const radius = isCharge ? 68 : 52;
     const spread = isCharge ? Math.PI * 0.35 : Math.PI * 0.305;
 
-    // setPosition(x,y) でグラフィックをプレイヤー位置に置き、
-    // 以降の描画はローカル座標 (0,0) 基点で行う。
-    // これにより scaleX/Y のトゥイーンがプレイヤー中心を起点に広がる。
-    const g = this.scene.add.graphics()
-      .setDepth(15)
-      .setPosition(x, y);
+    // scaleX/Y トゥイーンは Graphics の座標ごと引き伸ばしてしまうため使わない。
+    // 描画は世界座標で行い、alpha フェードのみでアニメーションする。
+    const g = this.scene.add.graphics().setDepth(15);
 
-    g.fillStyle(isCharge ? 0xff8800 : 0xffffff, isCharge ? 0.55 : 0.45);
+    // 扇型フィル
+    g.fillStyle(isCharge ? 0xff8800 : 0xffffff, isCharge ? 0.45 : 0.35);
     g.beginPath();
-    g.moveTo(0, 0);
-    g.arc(0, 0, radius, angle - spread, angle + spread, false);
+    g.moveTo(x, y);
+    g.arc(x, y, radius, angle - spread, angle + spread, false);
     g.closePath();
     g.fill();
 
-    // 刀身ライン（扇の中心線）
-    const ex = Math.cos(angle) * radius;
-    const ey = Math.sin(angle) * radius;
-    g.lineStyle(isCharge ? 3 : 2, isCharge ? 0xffcc00 : 0xddddff, 0.9);
+    // アーク外周ライン
+    g.lineStyle(isCharge ? 3 : 2, isCharge ? 0xffcc00 : 0xeeeeff, 0.9);
     g.beginPath();
-    g.moveTo(0, 0);
-    g.lineTo(ex, ey);
+    g.arc(x, y, radius, angle - spread, angle + spread, false);
     g.strokePath();
 
-    // チャージはフチを追加
-    if (isCharge) {
-      g.lineStyle(2, 0xffdd44, 0.8);
-      g.beginPath();
-      g.arc(0, 0, radius, angle - spread, angle + spread, false);
-      g.strokePath();
-    }
+    // 刀身ライン（扇の中心線）
+    g.lineStyle(isCharge ? 3 : 2, isCharge ? 0xffff88 : 0xffffff, 1.0);
+    g.beginPath();
+    g.moveTo(x, y);
+    g.lineTo(x + Math.cos(angle) * radius, y + Math.sin(angle) * radius);
+    g.strokePath();
 
+    // alpha フェードのみ（scale は使わない）
     this.scene.tweens.add({
       targets: g,
       alpha: 0,
-      scaleX: isCharge ? 1.25 : 1.08,
-      scaleY: isCharge ? 1.25 : 1.08,
-      duration: isCharge ? 280 : 180,
+      duration: isCharge ? 260 : 170,
       ease: 'Quad.easeOut',
       onComplete: () => g.destroy(),
     });
