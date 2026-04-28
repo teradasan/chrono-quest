@@ -173,10 +173,24 @@ export class FieldScene extends Phaser.Scene {
     }).setScrollFactor(0).setDepth(100);
 
     this.input.gamepad.on('connected', pad => console.log('Pad:', pad.id));
+
+    // ゲームパッドボタン番号デバッグ表示（右下に常時表示）
+    this._padDebugText = this.add.text(this.scale.width - 12, this.scale.height - 60,
+      'PAD: --', {
+        fontSize: '11px',
+        fontFamily: 'monospace',
+        color: '#aaaaaa',
+        backgroundColor: '#00000099',
+        padding: { x: 6, y: 4 },
+      }).setOrigin(1, 1).setScrollFactor(0).setDepth(100);
   }
 
   update(time, delta) {
     const input = this.input$;
+
+    // holdMs は input.update() で _attackHoldMs がリセットされる前に取得する
+    const holdMs = input.getAttackHoldMs();
+
     input.update(delta);
 
     // ── ロックオン ──────────────────────────
@@ -187,7 +201,6 @@ export class FieldScene extends Phaser.Scene {
     // ── 攻撃入力 ───────────────────────────
     const attackDown = input.isJustDown(ACTION.ATTACK);
     const attackUp   = input.isJustUp(ACTION.ATTACK);
-    const holdMs     = input.getAttackHoldMs();
 
     if (input.isDown(ACTION.ATTACK) && holdMs > 0 && this.combat.canAttack()) {
       // チャージ中エフェクト
@@ -209,6 +222,19 @@ export class FieldScene extends Phaser.Scene {
 
     // ── 戦闘更新 ────────────────────────────
     this.combat.update(delta, null);
+
+    // ── ゲームパッドデバッグ ────────────────
+    if (this._padDebugText) {
+      const gp  = this.input.gamepad;
+      const pad = gp?.pad1 ?? gp?.pad2 ?? gp?.pad3 ?? gp?.pad4;
+      if (pad) {
+        const pressed = pad.buttons
+          .map((b, i) => b.pressed ? i : -1)
+          .filter(i => i >= 0);
+        const label = pressed.length > 0 ? `BTN: [${pressed.join(',')}]` : 'PAD: OK';
+        this._padDebugText.setText(label);
+      }
+    }
 
     // ── 水タイルのゆらめき ──────────────────
     this.waterTime += delta;

@@ -326,9 +326,11 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     const dashing   = inputManager.isDown(ACTION.DASH) && !attacking;
     const dodgeJust = inputManager.isJustDown(ACTION.DODGE);
 
-    // 回避開始（攻撃中は不可）
-    if (dodgeJust && this._dodgeCooldown <= 0 && moving && !attacking) {
-      this._startDodge(x, y);
+    // 回避開始（攻撃中は不可・静止中は向いている方向へ）
+    if (dodgeJust && this._dodgeCooldown <= 0 && !attacking) {
+      const dodgeX = moving ? x : (this.dir === 'left' ? -1 : this.dir === 'right' ? 1 : 0);
+      const dodgeY = moving ? y : (this.dir === 'up'   ? -1 : this.dir === 'down'  ? 1 : 0);
+      this._startDodge(dodgeX, dodgeY);
       return;
     }
 
