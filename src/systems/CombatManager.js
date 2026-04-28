@@ -8,18 +8,18 @@ const CHARGE_ACTIVE     = 220;   // チャージ攻撃のヒットボックス�
 const LOCKON_RANGE      = 260;   // ロックオン射程(px)
 
 // 方向ごとのヒットボックス位置（プレイヤー中心からのオフセット）
-// reach = 攻撃方向への奥行き、span = 垂直方向のカバー幅
-// 通常: 前方1.3タイル・縦1.25タイル / チャージ: 前方1.6タイル・縦1.6タイル
+// 突き攻撃スタイル: 前方に細長い矩形、斜め方向には当たらない
+// reach = 前方奥行き / span = 幅（キャラ幅程度の細さ）
 function getHitboxRect(dir, isCharge) {
-  const reach = isCharge ? 64 : 50;  // 攻撃方向の奥行き(px)
-  const span  = isCharge ? 76 : 60;  // 垂直カバー幅(px)
+  const reach = isCharge ? 62 : 48;  // 前方奥行き(px) ≒ 1タイル
+  const span  = isCharge ? 20 : 14;  // 幅(px) ─ 細め
   const of    = 14;                  // プレイヤー端からの開始オフセット
   switch (dir) {
-    case 'down':  return { x: -span / 2,      y: of,             w: span, h: reach };
-    case 'up':    return { x: -span / 2,      y: -of - reach,    w: span, h: reach };
-    case 'left':  return { x: -of - reach,    y: -span / 2,      w: reach, h: span };
-    case 'right': return { x: of,             y: -span / 2,      w: reach, h: span };
-    default:      return { x: -span / 2,      y: of,             w: span, h: reach };
+    case 'down':  return { x: -span / 2,     y: of,            w: span, h: reach };
+    case 'up':    return { x: -span / 2,     y: -of - reach,   w: span, h: reach };
+    case 'left':  return { x: -of - reach,   y: -span / 2,     w: reach, h: span };
+    case 'right': return { x: of,            y: -span / 2,     w: reach, h: span };
+    default:      return { x: -span / 2,     y: of,            w: span, h: reach };
   }
 }
 
@@ -173,41 +173,62 @@ export class CombatManager {
 
   _showSwingEffect(isCharge) {
     const { x, y, dir } = this.player;
-    const angle  = DIR_ANGLE[dir] ?? 0;
-    // 通常: 半角55° = 合計110° / チャージ: 半角63° = 合計126°
-    const radius = isCharge ? 68 : 52;
-    const spread = isCharge ? Math.PI * 0.35 : Math.PI * 0.305;
+    const reach     = isCharge ? 62 : 48;  // hitbox と合わせる
+    const halfSpan  = isCharge ? 10 :  7;  // 幅の半分
+    const of        = 14;
 
-    // scaleX/Y トゥイーンは Graphics の座標ごと引き伸ばしてしまうため使わない。
-    // 描画は世界座標で行い、alpha フェードのみでアニメーションする。
+    // 方向ベクトル（前方 / 垂直）
+    const dx = dir === 'right' ? 1 : dir === 'left' ? -1 : 0;
+    const dy = dir === 'down'  ? 1 : dir === 'up'   ? -1 : 0;
+    const px = -dy;  // perpendicular
+    const py =  dx;
+
+    // 根元・先端の世界座標
+    const rootX = x + dx * of;
+    const rootY = y + dy * of;
+    const tipX  = x + dx * (of + reach);
+    const tipY  = y + dy * (of + reach);
+
     const g = this.scene.add.graphics().setDepth(15);
 
-    // 扇型フィル
+    // ── 帯状の光跡（台形: 根元が太く先端が細い）──────────
     g.fillStyle(isCharge ? 0xff8800 : 0xffffff, isCharge ? 0.45 : 0.35);
     g.beginPath();
-    g.moveTo(x, y);
-    g.arc(x, y, radius, angle - spread, angle + spread, false);
+    g.moveTo(rootX + px * halfSpan,        rootY + py * halfSpan);
+    g.lineTo(tipX  + px * halfSpan * 0.25, tipY  + py * halfSpan * 0.25);
+    g.lineTo(tipX  - px * halfSpan * 0.25, tipY  - py * halfSpan * 0.25);
+    g.lineTo(rootX - px * halfSpan,        rootY - py * halfSpan);
     g.closePath();
     g.fill();
 
-    // アーク外周ライン
-    g.lineStyle(isCharge ? 3 : 2, isCharge ? 0xffcc00 : 0xeeeeff, 0.9);
+    // ── 刀身ライン（中心）────────────────────────────────
+    g.lineStyle(isCharge ? 4 : 3, isCharge ? 0xffff44 : 0xffffff, 1.0);
     g.beginPath();
-    g.arc(x, y, radius, angle - spread, angle + spread, false);
+    g.moveTo(rootX, rootY);
+    g.lineTo(tipX,  tipY);
     g.strokePath();
 
-    // 刀身ライン（扇の中心線）
-    g.lineStyle(isCharge ? 3 : 2, isCharge ? 0xffff88 : 0xffffff, 1.0);
-    g.beginPath();
-    g.moveTo(x, y);
-    g.lineTo(x + Math.cos(angle) * radius, y + Math.sin(angle) * radius);
-    g.strokePath();
+    // ── スピードライン（両脇 2本）────────────────────────
+    const lineColor = isCharge ? 0xffcc00 : 0xbbccff;
+    for (const side of [-1, 1]) {
+      const ox = px * halfSpan * 0.6 * side;
+      const oy = py * halfSpan * 0.6 * side;
+      g.lineStyle(1, lineColor, 0.55);
+      g.beginPath();
+      g.moveTo(rootX + ox, rootY + oy);
+      g.lineTo(tipX  + ox * 0.3, tipY + oy * 0.3);
+      g.strokePath();
+    }
+
+    // ── 先端フラッシュ ────────────────────────────────────
+    g.fillStyle(isCharge ? 0xffff88 : 0xffffff, isCharge ? 0.9 : 0.8);
+    g.fillCircle(tipX, tipY, isCharge ? 7 : 5);
 
     // alpha フェードのみ（scale は使わない）
     this.scene.tweens.add({
       targets: g,
       alpha: 0,
-      duration: isCharge ? 260 : 170,
+      duration: isCharge ? 220 : 140,
       ease: 'Quad.easeOut',
       onComplete: () => g.destroy(),
     });
