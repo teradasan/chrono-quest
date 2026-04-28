@@ -116,7 +116,7 @@ export class FieldScene extends Phaser.Scene {
     // ゲームパッドデバッグ表示（Raw Gamepad API で直接確認）
     try {
       const rawPads = navigator.getGamepads ? Array.from(navigator.getGamepads()).filter(Boolean) : [];
-      const raw = rawPads[0];
+      const raw = rawPads[0]; // 最初に見つかったパッドを使用
       if (raw) {
         // 押されているボタン（value > 0.1）
         const rawBtns = raw.buttons

@@ -249,7 +249,10 @@ export class InputManager {
   // --- ユーティリティ ---
 
   _getPad() {
-    return this.scene.input.gamepad?.pad1 ?? null;
+    const gp = this.scene.input.gamepad;
+    if (!gp) return null;
+    // スロット0〜3を順番に探して最初に接続されているものを返す
+    return gp.pad1 ?? gp.pad2 ?? gp.pad3 ?? gp.pad4 ?? null;
   }
 
   /**
