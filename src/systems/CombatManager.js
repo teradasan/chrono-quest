@@ -178,20 +178,26 @@ export class CombatManager {
     const radius = isCharge ? 68 : 52;
     const spread = isCharge ? Math.PI * 0.35 : Math.PI * 0.305;
 
-    const g = this.scene.add.graphics().setDepth(15);
+    // setPosition(x,y) でグラフィックをプレイヤー位置に置き、
+    // 以降の描画はローカル座標 (0,0) 基点で行う。
+    // これにより scaleX/Y のトゥイーンがプレイヤー中心を起点に広がる。
+    const g = this.scene.add.graphics()
+      .setDepth(15)
+      .setPosition(x, y);
+
     g.fillStyle(isCharge ? 0xff8800 : 0xffffff, isCharge ? 0.55 : 0.45);
     g.beginPath();
-    g.moveTo(x, y);
-    g.arc(x, y, radius, angle - spread, angle + spread, false);
+    g.moveTo(0, 0);
+    g.arc(0, 0, radius, angle - spread, angle + spread, false);
     g.closePath();
     g.fill();
 
-    // 刀身のライン（扇の中心線）
-    const ex = x + Math.cos(angle) * radius;
-    const ey = y + Math.sin(angle) * radius;
+    // 刀身ライン（扇の中心線）
+    const ex = Math.cos(angle) * radius;
+    const ey = Math.sin(angle) * radius;
     g.lineStyle(isCharge ? 3 : 2, isCharge ? 0xffcc00 : 0xddddff, 0.9);
     g.beginPath();
-    g.moveTo(x, y);
+    g.moveTo(0, 0);
     g.lineTo(ex, ey);
     g.strokePath();
 
@@ -199,7 +205,7 @@ export class CombatManager {
     if (isCharge) {
       g.lineStyle(2, 0xffdd44, 0.8);
       g.beginPath();
-      g.arc(x, y, radius, angle - spread, angle + spread, false);
+      g.arc(0, 0, radius, angle - spread, angle + spread, false);
       g.strokePath();
     }
 
