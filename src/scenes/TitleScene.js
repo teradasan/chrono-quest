@@ -73,10 +73,21 @@ export class TitleScene extends Phaser.Scene {
     this.input.keyboard.once('keydown-ENTER', () => this.startGame());
     this.input.keyboard.once('keydown-SPACE', () => this.startGame());
 
-    // ゲームパッド入力（接続待ち）
-    this.input.gamepad.once('down', (pad, button) => {
-      if (button.index === 0) this.startGame(); // Aボタン
-    });
+    // ゲームパッド入力：任意のボタンで進む（updateで毎フレーム確認）
+    this._started = false;
+  }
+
+  update() {
+    if (this._started) return;
+    const gp = this.input.gamepad;
+    const pad = gp?.pad1 ?? gp?.pad2 ?? gp?.pad3 ?? gp?.pad4;
+    if (pad) {
+      const anyPressed = pad.buttons.some(b => b.pressed);
+      if (anyPressed) {
+        this._started = true;
+        this.startGame();
+      }
+    }
   }
 
   startGame() {

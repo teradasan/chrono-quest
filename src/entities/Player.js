@@ -43,6 +43,16 @@ export function createPlayerTexture(scene) {
   }
 
   canvas.refresh();
+
+  // フレームデータを手動登録（これがないと全フレームが1枚絵として表示される）
+  const texture = scene.textures.get('player');
+  const ROWS = 5;
+  for (let row = 0; row < ROWS; row++) {
+    for (let col = 0; col < WALK_FRAMES; col++) {
+      const frameIndex = row * WALK_FRAMES + col;
+      texture.add(frameIndex, 0, col * FW, row * FH, FW, FH);
+    }
+  }
 }
 
 // ── 共通ヘルパー ──────────────────────────
