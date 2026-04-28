@@ -158,12 +158,12 @@ export class InputManager {
         fromAnalog = true;
       }
 
-      // Dパッド
+      // Dパッド（.pressed で判定 — pad.left はオブジェクトなので常にtruthyになる）
       if (!fromAnalog) {
-        if (pad.left)  x -= 1;
-        if (pad.right) x += 1;
-        if (pad.up)    y -= 1;
-        if (pad.down)  y += 1;
+        if (pad.left?.pressed)  x -= 1;
+        if (pad.right?.pressed) x += 1;
+        if (pad.up?.pressed)    y -= 1;
+        if (pad.down?.pressed)  y += 1;
       }
     }
 
@@ -249,7 +249,7 @@ export class InputManager {
   // --- ユーティリティ ---
 
   _getPad() {
-    return this.scene.input.gamepad?.getPad(0) ?? null;
+    return this.scene.input.gamepad?.pad1 ?? null;
   }
 
   /**
