@@ -5,6 +5,7 @@ import { InputManager, ACTION } from '../systems/InputManager.js';
 import { Player, createPlayerTexture } from '../entities/Player.js';
 import { CombatManager } from '../systems/CombatManager.js';
 import { EnemyManager } from '../systems/EnemyManager.js';
+import { HUD } from '../ui/HUD.js';
 
 const CHARGE_THRESHOLD = 600; // チャージ攻撃に必要な押しっぱなし時間(ms)
 
@@ -62,6 +63,12 @@ export class FieldScene extends Phaser.Scene {
 
     // 入力
     this.input$ = new InputManager(this);
+
+    // HUD（ハート型HPバー）
+    this.hud = new HUD(this, this.player);
+
+    // 死亡検知 → ゲームオーバーへ
+    this.events.once('playerDied', () => this._onPlayerDied());
 
     // ミニマップ
     this.createMinimap(mapW, mapH);
@@ -250,7 +257,22 @@ export class FieldScene extends Phaser.Scene {
     }
   }
 
+  _onPlayerDied() {
+    // 入力を止める
+    this.input$?.destroy();
+
+    // カメラを揺らしてからゲームオーバーへ
+    this.cameras.main.shake(400, 0.018);
+    this.time.delayedCall(600, () => {
+      this.cameras.main.fadeOut(500, 0, 0, 0);
+      this.cameras.main.once('camerafadeoutcomplete', () => {
+        this.scene.start('GameOverScene');
+      });
+    });
+  }
+
   shutdown() {
+    this.hud?.destroy();
     this.input$?.destroy();
     this.combat?.destroy();
     this.enemyMgr?.destroy();

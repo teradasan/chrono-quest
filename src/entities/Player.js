@@ -431,9 +431,20 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   takeDamage(amount) {
     if (this.invincible) return false;
     this.hp = Math.max(0, this.hp - amount);
+
+    // HUD・ダメージフラッシュ通知
+    this.scene.events.emit('playerDamaged', this.hp);
+
+    if (this.hp <= 0) {
+      // 死亡通知（FieldScene が受け取ってゲームオーバーへ）
+      this.scene.events.emit('playerDied');
+      return true;
+    }
+
     this.invincible = true;
     this._blinkTimer = 0;
     this.scene.time.delayedCall(1000, () => {
+      if (!this.active) return;
       this.invincible = false;
       this.setAlpha(1);
     });
