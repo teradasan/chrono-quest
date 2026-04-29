@@ -262,6 +262,7 @@ export class CombatManager {
 
     targetGroup?.getChildren().forEach(check);
     this._dummyGroup?.getChildren().forEach(check);
+    this._enemyGroup?.getChildren().forEach(check);
   }
 
   _onHit(target, data) {
@@ -336,6 +337,12 @@ export class CombatManager {
 
   setDummyGroup(group) {
     this._dummyGroup = group;
+  }
+
+  // ─── 敵グループ登録 ─────────────────────────
+
+  setEnemyGroup(group) {
+    this._enemyGroup = group;
   }
 
   destroy() {

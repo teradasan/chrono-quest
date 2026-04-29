@@ -4,8 +4,15 @@ import { FIELD_MAP, MAP_COLS, MAP_ROWS, WALL_TILES } from '../maps/fieldMapData.
 import { InputManager, ACTION } from '../systems/InputManager.js';
 import { Player, createPlayerTexture } from '../entities/Player.js';
 import { CombatManager } from '../systems/CombatManager.js';
+import { EnemyManager } from '../systems/EnemyManager.js';
 
 const CHARGE_THRESHOLD = 600; // チャージ攻撃に必要な押しっぱなし時間(ms)
+
+// プレイヤー開始タイル
+const START_TX = 25;
+const START_TY = 17;
+
+const T = (tx, ty) => [tx * TILE_PX + TILE_PX / 2, ty * TILE_PX + TILE_PX / 2];
 
 export class FieldScene extends Phaser.Scene {
   constructor() {
@@ -32,17 +39,21 @@ export class FieldScene extends Phaser.Scene {
     this.physics.world.setBounds(0, 0, mapW, mapH);
 
     // プレイヤー
-    const startX = 25 * TILE_PX + TILE_PX / 2;
-    const startY = 17 * TILE_PX + TILE_PX / 2;
+    const [startX, startY] = T(START_TX, START_TY);
     this.player = new Player(this, startX, startY);
     this.physics.add.collider(this.player, this.layer);
 
     // 戦闘システム
     this.combat = new CombatManager(this, this.player);
 
-    // ダミー標的（テスト用）
+    // ダミー標的（近接攻撃の練習用・スタート地点の真横）
     this.dummies = this._createDummies();
     this.combat.setDummyGroup(this.dummies);
+
+    // 敵 AI
+    this.enemyMgr = new EnemyManager(this, this.player, this.layer);
+    this._spawnEnemies();
+    this.combat.setEnemyGroup(this.enemyMgr.getGroup());
 
     // カメラ
     this.cameras.main.setBounds(0, 0, mapW, mapH);
@@ -61,63 +72,74 @@ export class FieldScene extends Phaser.Scene {
     this.waterTime = 0;
   }
 
-  // ── ダミー標的生成 ────────────────────────
+  // ── 敵の配置 ─────────────────────────────
+  // プレイヤースタート: tile(25,17)
+  // 各エリアに1体ずつ配置（探索しながら遭遇できる距離）
+
+  _spawnEnemies() {
+    const M = this.enemyMgr;
+
+    // ── パトロール型 × 2 ──────────────────
+    // 北西エリア: tile(20,11) を中心に東西を往復
+    const [px1, py1] = T(20, 11);
+    M.spawnPatrol(px1, py1, [T(17, 11), T(23, 11)]);
+
+    // 南東エリア: tile(31,22) を中心に東西を往復
+    const [px2, py2] = T(31, 22);
+    M.spawnPatrol(px2, py2, [T(28, 22), T(34, 22)]);
+
+    // ── 突進型 × 1 ────────────────────────
+    // 南西エリア: tile(19,23)
+    const [rx, ry] = T(19, 23);
+    M.spawnRush(rx, ry);
+
+    // ── 遠距離型 × 1 ──────────────────────
+    // 北東エリア: tile(32,12)
+    const [mgx, mgy] = T(32, 12);
+    M.spawnRanged(mgx, mgy);
+  }
+
+  // ── ダミー標的生成（攻撃テスト用）────────
+
   _createDummies() {
     const group = this.add.group();
     const positions = [
-      [25 * TILE_PX - 80, 17 * TILE_PX - 60],
-      [25 * TILE_PX + 100, 17 * TILE_PX - 40],
-      [25 * TILE_PX,       17 * TILE_PX + 100],
+      [START_TX * TILE_PX - 80, START_TY * TILE_PX - 60],
+      [START_TX * TILE_PX + 100, START_TY * TILE_PX - 40],
+      [START_TX * TILE_PX,       START_TY * TILE_PX + 100],
     ];
 
     positions.forEach(([x, y]) => {
-      // 土台
-      const base = this.add.rectangle(x, y + 18, 20, 10, 0x5c3010, 1).setDepth(8);
-
-      // 標的本体
+      const base  = this.add.rectangle(x, y + 18, 20, 10, 0x5c3010, 1).setDepth(8);
       const dummy = this.add.container(x, y).setDepth(9);
 
-      // 木の棒
-      const pole = this.add.rectangle(0, 10, 6, 30, 0x8b6014);
-      // 藁人形
-      const body = this.add.rectangle(0, -4, 22, 26, 0xd4a060);
-      const head = this.add.circle(0, -20, 10, 0xd4a060);
-      // 目
-      const eye1 = this.add.rectangle(-4, -22, 4, 4, 0x333333);
-      const eye2 = this.add.rectangle( 4, -22, 4, 4, 0x333333);
-      // 口
-      const mouth = this.add.rectangle(0, -16, 8, 3, 0x333333);
-      // ×印
-      const cross1 = this.add.rectangle(0, -4, 24, 3, 0xcc4400).setAngle(45);
-      const cross2 = this.add.rectangle(0, -4, 24, 3, 0xcc4400).setAngle(-45);
-
+      const pole   = this.add.rectangle(0,  10, 6, 30, 0x8b6014);
+      const body   = this.add.rectangle(0,  -4, 22, 26, 0xd4a060);
+      const head   = this.add.circle(0, -20, 10, 0xd4a060);
+      const eye1   = this.add.rectangle(-4, -22, 4, 4, 0x333333);
+      const eye2   = this.add.rectangle( 4, -22, 4, 4, 0x333333);
+      const mouth  = this.add.rectangle(0, -16, 8, 3, 0x333333);
+      const cross1 = this.add.rectangle(0,  -4, 24, 3, 0xcc4400).setAngle(45);
+      const cross2 = this.add.rectangle(0,  -4, 24, 3, 0xcc4400).setAngle(-45);
       dummy.add([pole, body, head, eye1, eye2, mouth, cross1, cross2]);
 
-      // 物理判定用（hit判定のみ）
-      const hitRect = this.add.rectangle(x, y - 4, 22, 40, 0xff0000, 0);
-      hitRect.setDepth(9);
-      hitRect.hp = 10;
-      hitRect.hpMax = 10;
+      const hitRect = this.add.rectangle(x, y - 4, 22, 40, 0xff0000, 0).setDepth(9);
+      hitRect.hp         = 10;
+      hitRect.hpMax      = 10;
       hitRect._container = dummy;
-      hitRect._base = base;
+      hitRect._base      = base;
 
-      hitRect.takeDamage = function(amount) {
+      hitRect.takeDamage = function (amount) {
         this.hp -= amount;
-        // 揺れエフェクト
         this.scene?.tweens?.add({
           targets: this._container,
           x: { from: this._container.x - 4, to: this._container.x + 4 },
-          duration: 60,
-          yoyo: true,
-          repeat: 2,
+          duration: 60, yoyo: true, repeat: 2,
         });
         if (this.hp <= 0) {
-          // 破壊エフェクト
           this.scene?.tweens?.add({
             targets: [this._container, this._base],
-            alpha: 0,
-            y: '-=20',
-            duration: 400,
+            alpha: 0, y: '-=20', duration: 400,
             onComplete: () => {
               this._container.destroy();
               this._base.destroy();
@@ -173,16 +195,6 @@ export class FieldScene extends Phaser.Scene {
     }).setScrollFactor(0).setDepth(100);
 
     this.input.gamepad.on('connected', pad => console.log('Pad:', pad.id));
-
-    // ゲームパッドボタン番号デバッグ表示（右下に常時表示）
-    this._padDebugText = this.add.text(this.scale.width - 12, this.scale.height - 60,
-      'PAD: --', {
-        fontSize: '11px',
-        fontFamily: 'monospace',
-        color: '#aaaaaa',
-        backgroundColor: '#00000099',
-        padding: { x: 6, y: 4 },
-      }).setOrigin(1, 1).setScrollFactor(0).setDepth(100);
   }
 
   update(time, delta) {
@@ -195,15 +207,13 @@ export class FieldScene extends Phaser.Scene {
 
     // ── ロックオン ──────────────────────────
     const lockHeld = input.isDown(ACTION.LOCK_ON);
-    this.combat.updateLockOn(lockHeld, null);
+    this.combat.updateLockOn(lockHeld, this.enemyMgr.getGroup());
     this.player.setLockOnActive(lockHeld && !!this.combat.lockTarget);
 
     // ── 攻撃入力 ───────────────────────────
-    const attackDown = input.isJustDown(ACTION.ATTACK);
-    const attackUp   = input.isJustUp(ACTION.ATTACK);
+    const attackUp = input.isJustUp(ACTION.ATTACK);
 
     if (input.isDown(ACTION.ATTACK) && holdMs > 0 && this.combat.canAttack()) {
-      // チャージ中エフェクト
       this.combat.showChargeEffect(holdMs);
     } else {
       this.combat.clearChargeEffect();
@@ -211,33 +221,22 @@ export class FieldScene extends Phaser.Scene {
 
     if (attackUp && this.combat.canAttack()) {
       if (holdMs >= CHARGE_THRESHOLD) {
-        this.combat.startAttack(true);  // チャージ攻撃
+        this.combat.startAttack(true);
       } else if (holdMs > 0) {
-        this.combat.startAttack(false); // 通常攻撃
+        this.combat.startAttack(false);
       }
     }
 
     // ── プレイヤー更新 ──────────────────────
     this.player.update(delta, input);
 
-    // ── 戦闘更新 ────────────────────────────
-    this.combat.update(delta, null);
+    // ── 敵 AI 更新 ──────────────────────────
+    this.enemyMgr.update(delta);
 
-    // ── ゲームパッドデバッグ ────────────────
-    if (this._padDebugText) {
-      const gp  = this.input.gamepad;
-      const pad = gp?.pad1 ?? gp?.pad2 ?? gp?.pad3 ?? gp?.pad4;
-      if (pad) {
-        const pressed = pad.buttons
-          .map((b, i) => b.pressed ? i : -1)
-          .filter(i => i >= 0);
-        const label = pressed.length > 0 ? `BTN: [${pressed.join(',')}]` : 'PAD: OK';
-        this._padDebugText.setText(label);
-      }
-    }
+    // ── 戦闘更新（敵グループを渡す）──────────
+    this.combat.update(delta, this.enemyMgr.getGroup());
 
-    // ── フレーム末：ゲームパッドの prev 状態を保存 ──
-    // ※ 必ず全ての isJustDown/isJustUp チェックの後に呼ぶ
+    // ── フレーム末：ゲームパッド prev 保存 ───
     this.input$.endFrame();
 
     // ── 水タイルのゆらめき ──────────────────
@@ -254,5 +253,6 @@ export class FieldScene extends Phaser.Scene {
   shutdown() {
     this.input$?.destroy();
     this.combat?.destroy();
+    this.enemyMgr?.destroy();
   }
 }
